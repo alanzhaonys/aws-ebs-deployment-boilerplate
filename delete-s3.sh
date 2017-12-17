@@ -3,7 +3,7 @@
 if [ "$#" -ne 2 ]; then
   echo Wrong parameter count
   echo Usage:
-  echo ./delete-s3.sh \"s3://azhao/apps/azhao/master\" \"7 days\"
+  echo ./delete-s3.sh \"s3://mys3bucket/apps/my-app/master\" \"7 days\"
   exit
 fi
 
