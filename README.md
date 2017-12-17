@@ -44,7 +44,7 @@ Click [here](https://s3.amazonaws.com/azhao-public/github/aws-ebs-deploy-demo.we
 #### macOS
 `brew install awcli`
 
-For AWS access key and secret key, go to http://docs.aws.amazon.com/cli/latest/userguide/cli-chap-getting-started.html.
+For installation instructions, go to http://docs.aws.amazon.com/cli/latest/userguide/installing.html.
 
 #### Configure awscli
 ```
@@ -55,7 +55,7 @@ Default region name [None]: us-east-1
 Default output format [None]: json
 ```
 
-For more details, go to http://docs.aws.amazon.com/cli/latest/userguide/installing.html.
+For configuration instructions, go to http://docs.aws.amazon.com/cli/latest/userguide/cli-chap-getting-started.html.
 
 ### jq
 jq is used to parse JSON data in bash.
