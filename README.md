@@ -100,7 +100,7 @@ S3_BUCKET_DIR | S3 directory for applications | `apps/${APP_NAME}/${APP_BRANCH}`
 S3_BUCKET_FILE | S3 file name | `${S3_BUCKET_DIR}/${APP_FILE_VERSIONED}`
 S3_DELETE | Whether or not to delete old appliation files | 1
 S3_DELETE_DAYS_OLD | Delete old application `n` days old | 7
-OPEN_IN_BROWSER_AFTER_UPDATE | Whether or not to open browser after update has been made. 1 = Yes, 0 = No | 1
+OPEN_IN_BROWSER_AFTER_UPDATE | Whether or not to open browser after update has been made, only works in Desktop environments. 1 = Yes, 0 = No | 1
 
 ### ./aws.sh deploy
 This command deploys current branch to a Elastic Beanstalk environment.
