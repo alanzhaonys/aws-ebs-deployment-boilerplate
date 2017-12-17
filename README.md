@@ -20,6 +20,14 @@ You're required to:
 need to move files around or configure database credentials
 * Modify deployment processes to fit your needs
 
+## Demo
+
+In this demo, I created a new application with 3 environments using commands only.
+
+![Alt Text](https://s3.amazonaws.com/azhao-public/github/aws-ebs-deploy-demo.gif)
+
+Click [here](https://s3.amazonaws.com/azhao-public/github/aws-ebs-deploy-demo.webm) to see a high resolution video of the demo.
+
 ## Quick Start
 
 * Install `awscli`, `jq`, `gdate` (macOS only) and configure `awscli`. See installation instructions below
