@@ -22,7 +22,7 @@ need to move files around or configure database credentials
 
 ## Demo
 
-In this demo, I created a new application with 3 environments using commands only.
+In this demo, I created a new application with 3 environments in AWS Elastic Beanstalk using commands only.
 
 ![Alt Text](https://s3.amazonaws.com/azhao-public/github/aws-ebs-deploy-demo.gif)
 
