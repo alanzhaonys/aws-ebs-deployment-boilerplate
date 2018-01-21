@@ -1,11 +1,13 @@
 #!/bin/bash
 
-echo
-echo +++++++++++++++++++++++++++ AWS DEPLOYMENT ++++++++++++++++++++++++++++++
-
 #
 # Begin functions
 #
+
+function begin() {
+  echo
+  echo +++++++++++++++++++++++++++ AWS DEPLOYMENT ++++++++++++++++++++++++++++++
+}
 
 function end() {
   echo +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -14,7 +16,19 @@ function end() {
 }
 
 function create_environment() {
-  aws elasticbeanstalk create-environment --cname-prefix $ENV_NAME --application-name $APP_NAME --version-label $APP_FILE_VERSIONED --environment-name $ENV_NAME --solution-stack-name "$STACK" --option-settings "[
+  readonly ENV_TO_CREATE=$1
+
+  # Create new Application version
+  aws elasticbeanstalk create-application-version --application-name $APP_NAME \
+    --version-label $APP_FILE_VERSIONED --description $ENV_TO_CREATE \
+    --source-bundle S3Bucket="$S3_BUCKET",S3Key="$S3_BUCKET_FILE" \
+    >/dev/null 2>&1
+
+  # Create new environment
+  aws elasticbeanstalk create-environment --cname-prefix $ENV_TO_CREATE \
+    --application-name $APP_NAME --version-label $APP_FILE_VERSIONED \
+    --environment-name $ENV_TO_CREATE --solution-stack-name "$STACK" \
+    --option-settings "[
             {
                 \"Namespace\": \"aws:autoscaling:launchconfiguration\",
                 \"OptionName\": \"InstanceType\",
@@ -33,9 +47,58 @@ function create_environment() {
         ]" >/dev/null 2>&1
 }
 
+function update_environment() {
+  readonly ENV_TO_UPDATE=$1
+
+  aws elasticbeanstalk create-application-version --application-name $APP_NAME \
+    --version-label $APP_FILE_VERSIONED --description $ENV_TO_UPDATE \
+    --source-bundle S3Bucket="$S3_BUCKET",S3Key="$S3_BUCKET_FILE" \
+    >/dev/null 2>&1
+
+  ENV_ID=($(aws elasticbeanstalk describe-environments \
+    --environment-names $ENV_TO_UPDATE | jq -r '.Environments[].EnvironmentId'))
+  aws elasticbeanstalk update-environment --environment-id $ENV_ID \
+    --version-label "$APP_FILE_VERSIONED" >/dev/null 2>&1
+}
+
+function swap_environment() {
+  readonly ENV_TO_WAIT=$1
+  readonly ENV_TO_SWAP=$2
+
+  # Wait for it to complete
+  try=10
+  i="0"
+
+  while [ $i -lt $try ]; do
+    echo "WAIT FOR SECONDARY ENVIRONMENT TO BE READY, DON'T QUIT"
+    # Give it a min
+    sleep 30
+    ((i++))
+
+    ENV_TO_WAIT_HEALTH=($(aws elasticbeanstalk describe-environments \
+      --environment-names $ENV_TO_WAIT | jq -r '.Environments[].Health'))
+
+    if [ "$ENV_TO_WAIT_HEALTH" == "Green" ]; then
+      aws elasticbeanstalk swap-environment-cnames \
+        --source-environment-name $ENV_TO_SWAP \
+        --destination-environment-name $ENV_TO_WAIT
+
+      echo "SUCCESSFULLY SWAPPED ENVIRONMENTS"
+      break
+    fi
+
+    if [ $i -eq $(( $try - 1 )) ]; then
+      echo "UNABLE TO SWAPPED ENVIRONMENT"
+    fi
+  done
+}
+
 #
 # End functions
 #
+
+
+begin
 
 # Usage
 if [ "${1}" != "deploy" ] && [ "${1}" != "terminate" ]; then
@@ -83,7 +146,7 @@ fi
 ########################
 
 # AWS application name
-readonly APP_NAME="CHANGE-TO-YOUR-APP-NAME"
+readonly APP_NAME="azhao-test"
 # Detect git branch
 readonly APP_BRANCH=$(git branch | sed -n -e 's/^\* \(.*\)/\1/p')
 # Application file name
@@ -97,15 +160,15 @@ readonly APP_FILE_VERSIONED=${APP_FILE}-${BUILD_NUMBER}
 # Public web directory
 readonly PUBLIC_WEB_DIR="public_html"
 # Platform stack
-readonly STACK="64bit Amazon Linux 2017.09 v2.6.0 running PHP 7.1"
+readonly STACK="64bit Amazon Linux 2017.09 v2.6.4 running PHP 7.1"
 # EC2 instance type
 readonly INSTANCE_TYPE="t2.micro"
 # Security group
-readonly SECURITY_GROUP="CHANGE-TO-YOUR-SECURITY-GROUP"
+readonly SECURITY_GROUP="azhao-ec2-default"
 # EC2 key pair name
-readonly EC2_KEY_NAME="CHANGE-TO-YOUR-KEY-NAME"
+readonly EC2_KEY_NAME="azhao-jenkins"
 # S3 bucket name
-readonly S3_BUCKET="CHANGE-TO-YOUR-S3-BUCKET"
+readonly S3_BUCKET="azhao"
 # S3 directory
 readonly S3_BUCKET_DIR="apps/${APP_NAME}/${APP_BRANCH}"
 # S3 file name
@@ -124,12 +187,16 @@ readonly OPEN_IN_BROWSER_AFTER_UPDATE=1
 # Whether or not anything has been updated
 UPDATED=0
 
+
 # Check if app exists
-APP_EXISTS=($(aws elasticbeanstalk describe-application-versions --application-name $APP_NAME | jq -r '.ApplicationVersions[].ApplicationName'))
+APP_EXISTS=($(aws elasticbeanstalk describe-application-versions \
+  --application-name $APP_NAME | jq -r '.ApplicationVersions[].ApplicationName'))
 # Check if environment available
-ENV_AVAILABLE=($(aws elasticbeanstalk check-dns-availability --cname-prefix $ENV_NAME | jq -r '.Available'))
+ENV_AVAILABLE=($(aws elasticbeanstalk check-dns-availability \
+  --cname-prefix $ENV_NAME | jq -r '.Available'))
 # Check environment health
-ENV_HEALTH=($(aws elasticbeanstalk describe-environments --environment-names $ENV_NAME | jq -r '.Environments[].Health'))
+ENV_HEALTH=($(aws elasticbeanstalk describe-environments \
+  --environment-names $ENV_NAME | jq -r '.Environments[].Health'))
 
 # Terminate
 if [ "${1}" == "terminate" ]; then
@@ -141,13 +208,15 @@ if [ "${1}" == "terminate" ]; then
   # Terminate application
   if [ "${2}" == "app" ]; then
     echo "APPLICATION AND ALL IT'S RUNNING ENVIRONMENTS ARE TERMINATING..."
-    aws elasticbeanstalk delete-application --application-name $APP_NAME --terminate-env-by-force >/dev/null 2>&1
+    aws elasticbeanstalk delete-application --application-name $APP_NAME \
+      --terminate-env-by-force >/dev/null 2>&1
     end
   elif [ "$ENV_AVAILABLE" == "false" ]; then
     # Terminate environment
     if [ "$ENV_HEALTH" == "Green" ]; then
       echo "EVIRONMENT IS TERMINATING..."
-      aws elasticbeanstalk terminate-environment --environment-name $ENV_NAME >/dev/null 2>&1
+      aws elasticbeanstalk terminate-environment --environment-name $ENV_NAME \
+        >/dev/null 2>&1
       end
     else
       echo "ENVIRONMENT IS NOT READY, TRY AGAIN LATER"
@@ -165,6 +234,9 @@ fi
 # BEGIN - BUILD YOUR WEB CONTENT (public_html) HERE #
 #####################################################
 
+touch ./public_html/build.txt
+echo $BUILD_NUMBER >> ./public_html/build.txt
+
 #####################################################
 # END                                               #
 #####################################################
@@ -181,20 +253,21 @@ cd - >/dev/null 2>&1
 echo "BUILT APP LOCALLY ON /tmp/${APP_FILE}.zip"
 
 # Send app to S3
-echo "SENDING APP TO S3: ${S3_BUCKET_FILE}"
-aws s3 cp --quiet /tmp/$APP_FILE.zip s3://${S3_BUCKET}/$S3_BUCKET_FILE
+echo "SENDING APP TO S3: s3://${S3_BUCKET}/${S3_BUCKET_FILE}"
+aws s3 cp --quiet /tmp/${APP_FILE}.zip s3://${S3_BUCKET}/${S3_BUCKET_FILE}
 
-echo "SETTING UP..."
+echo "DEPLOYING..."
 
 # App doesn't exists
 if [ "$APP_EXISTS" == "" ]; then
 
+  # Environment CNAME available
   if [ "$ENV_AVAILABLE" == "true" ]; then
-  
-    # Create application and environment
-    aws elasticbeanstalk create-application --application-name $APP_NAME --description "$APP_NAME" >/dev/null 2>&1
-    aws elasticbeanstalk create-application-version --application-name $APP_NAME --version-label $APP_FILE_VERSIONED --description $ENV_NAME --source-bundle S3Bucket="$S3_BUCKET",S3Key="$S3_BUCKET_FILE" >/dev/null 2>&1
-    create_environment
+
+    # Create NEW application and environment
+    aws elasticbeanstalk create-application --application-name $APP_NAME \
+      --description "$APP_NAME" >/dev/null 2>&1
+    create_environment $ENV_NAME
 
     UPDATED=1
     echo "SUCCESSFULLY CREATED APPLICATION AND ENVIRONMENT"
@@ -210,12 +283,13 @@ if [ "$APP_EXISTS" == "" ]; then
 
 else
 
-  # App exists
+  # App already exists
+
+  # Environment CNAME available
   if [ "$ENV_AVAILABLE" == "true" ]; then
 
     # Create environment
-    aws elasticbeanstalk create-application-version --application-name $APP_NAME --version-label $APP_FILE_VERSIONED --description $ENV_NAME --source-bundle S3Bucket="$S3_BUCKET",S3Key="$S3_BUCKET_FILE" >/dev/null 2>&1
-    create_environment
+    create_environment $ENV_NAME
 
     UPDATED=1
     echo "SUCCESSFULLY CREATED ENVIRONMENT"
@@ -225,9 +299,50 @@ else
     # Update environment
     if [ "$ENV_HEALTH" == "Green" ]; then
 
-      aws elasticbeanstalk create-application-version --application-name $APP_NAME --version-label $APP_FILE_VERSIONED --description $ENV_NAME --source-bundle S3Bucket="$S3_BUCKET",S3Key="$S3_BUCKET_FILE" >/dev/null 2>&1
-      ENV_ID=($(aws elasticbeanstalk describe-environments --application-name $APP_NAME | jq -r '.Environments[].EnvironmentId'))
-      aws elasticbeanstalk update-environment --environment-id $ENV_ID --version-label "$APP_FILE_VERSIONED" >/dev/null 2>&1
+      # Deploying to production and environment exists:
+      # - We don't want to update exsting environment as it will create down time.
+      # - Instead we create a secondary environment and swap CNAME when it's ready.
+      # - This secondary environment will stay there for future use, don't delete.
+
+      if [ "$APP_BRANCH" == "master" ]; then
+
+        echo "YOU'RE PUSHING TO PRODUCTION..."
+
+        readonly MASTER_ALT_ENV=${ENV_NAME}-alt
+        readonly MASTER_ALT_ENV_AVAILABLE=($(aws elasticbeanstalk \
+          check-dns-availability --cname-prefix $MASTER_ALT_ENV | jq -r '.Available'))
+
+        if [ "$MASTER_ALT_ENV_AVAILABLE" == "true" ]; then
+
+          echo "LET'S MAKE A SECONDARY ENVIRONMENT TO SWAP OVER TO AVOID DOWNTIME"
+          # Create a secondary master environment
+          create_environment $MASTER_ALT_ENV
+          swap_environment $MASTER_ALT_ENV $ENV_NAME
+
+        else
+
+          # If secondary environment has already been used as production,
+          # use the main environment for swapping
+          ENV_URL=($(aws elasticbeanstalk describe-environments \
+            --environment-names $ENV_NAME | jq -r '.Environments[].CNAME'))
+          if [[ $ENV_URL == "${ENV_NAME}."* ]]; then
+            echo "UPDATING SECONDARY ENVIRONMENT (${MASTER_ALT_ENV})"
+            update_environment $MASTER_ALT_ENV
+            swap_environment $MASTER_ALT_ENV $ENV_NAME
+          else
+            echo "UPDATING SECONDARY ENVIRONMENT (${ENV_NAME})"
+            update_environment $ENV_NAME
+            swap_environment $ENV_NAME $MASTER_ALT_ENV
+          fi
+
+        fi
+
+      else
+
+        # Not production, just update
+        update_environment $ENV_NAME
+
+      fi
 
       UPDATED=1
       echo "SUCCESSFULLY UPDATED ENVIRONMENT"
@@ -253,7 +368,9 @@ fi
 if [ "$UPDATED" -eq 1 ]; then
 
   # Get environment URL
-  ENV_URL=($(aws elasticbeanstalk describe-environments --environment-names $ENV_NAME | jq -r '.Environments[].CNAME'))
+  ENV_URL=($(aws elasticbeanstalk describe-environments \
+    --environment-names $ENV_NAME | jq -r '.Environments[].CNAME'))
+  echo "LATEST BUILD NUMBER IS: ${BUILD_NUMBER}"
   echo "ENVIRONMENT WILL BE SHORTLY AT: http://${ENV_URL}"
 
   # Open in browser
