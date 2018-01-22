@@ -146,7 +146,7 @@ fi
 ########################
 
 # AWS application name
-readonly APP_NAME="azhao-test"
+readonly APP_NAME="MUST CHANGE"
 # Detect git branch
 readonly APP_BRANCH=$(git branch | sed -n -e 's/^\* \(.*\)/\1/p')
 # Application file name
@@ -164,11 +164,11 @@ readonly STACK="64bit Amazon Linux 2017.09 v2.6.4 running PHP 7.1"
 # EC2 instance type
 readonly INSTANCE_TYPE="t2.micro"
 # Security group
-readonly SECURITY_GROUP="azhao-ec2-default"
+readonly SECURITY_GROUP="MUST CHANGE"
 # EC2 key pair name
-readonly EC2_KEY_NAME="azhao-jenkins"
+readonly EC2_KEY_NAME="MUST CHANGE"
 # S3 bucket name
-readonly S3_BUCKET="azhao"
+readonly S3_BUCKET="MUST CHANGE"
 # S3 directory
 readonly S3_BUCKET_DIR="apps/${APP_NAME}/${APP_BRANCH}"
 # S3 file name
