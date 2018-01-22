@@ -1,3 +1,0 @@
-docker build -t wordpress-docker .
-docker run -p 4000:80 wordpress-docker
-docker run -it [image id]
