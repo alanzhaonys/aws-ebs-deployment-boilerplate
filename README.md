@@ -13,6 +13,7 @@ Included scripts automate tasks below for you:
 * Create or update an application in AWS
 * Create or update an Elastic Beanstalk environment base on your GIT branch
 * Archive application files in S3, also purges old files after configurable days
+* *Seamlessly deploy your production(master branch) code to EBS without downtime.* See AWS [Blue/Green deployment](https://docs.aws.amazon.com/elasticbeanstalk/latest/dg/using-features.CNAMESwap.html) and beware of the DNS caveat noted in the documentation.
 
 You're required to:
 * Add your own web content
