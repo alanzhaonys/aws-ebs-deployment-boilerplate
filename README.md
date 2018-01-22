@@ -13,7 +13,7 @@ Included scripts automate tasks below for you:
 * Create or update an application in AWS
 * Create or update an Elastic Beanstalk environment base on your GIT branch
 * Archive application files in S3, also purges old files after configurable days
-* *Seamlessly deploy your production(master branch) code to EBS without downtime.* See AWS [Blue/Green deployment](https://docs.aws.amazon.com/elasticbeanstalk/latest/dg/using-features.CNAMESwap.html) and beware of the DNS caveat noted in the documentation.
+* **Seamlessly deploy your production(master branch) code to EBS without downtime.** See AWS [Blue/Green deployment](https://docs.aws.amazon.com/elasticbeanstalk/latest/dg/using-features.CNAMESwap.html) and beware of the DNS caveat noted in the documentation.
 
 You're required to:
 * Add your own web content
@@ -28,6 +28,12 @@ In this demo, I created a new application with 3 environments in AWS Elastic Bea
 ![Alt Text](https://s3.amazonaws.com/azhao-public/github/aws-ebs-deploy-demo.gif)
 
 Click [here](https://s3.amazonaws.com/azhao-public/github/aws-ebs-deploy-demo.webm) to see a high resolution video of the demo.
+
+## Branches
+
+* **master** This is the branch you want to start fresh
+* **wordpress** This is the branch I experiment with Wordpress
+* **beta** This is the branch I commit and test features
 
 ## Quick Start
 
