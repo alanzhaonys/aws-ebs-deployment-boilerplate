@@ -95,7 +95,7 @@ For more details, go to http://docs.aws.amazon.com/elasticbeanstalk/latest/dg/eb
 
 ### ./aws.sh
 
-Below are the ariables you can customize in `aws.sh`.
+Below are the variables you can customize in `aws.sh`.
 
 Name | Description | Default Value           
 --- | --- | ---
